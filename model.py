@@ -123,6 +123,14 @@ class lstm_decoder_embedding(chainer.Chain):
             self.b = chainer.Parameter(initializer=initw, shape=[n_words])
             self.fc3 = L.Linear(n_hid, n_words, initialW=initw)
 
+    def loop_function(self, prev, h, output_ptojection=False):
+        if output_ptojection:
+            prev = prev * self.W + self.b
+        prev_symbol = F.argmax(prev, 1)
+        emb_prev = F.embed_id(prev_symbol, normalizing(self.embed.W, 1))
+        emb_prev = F.concat([emb_prev, h], 1)
+        return emb_prev
+
     def rnn_decoder_truncated(self, decoder_inputs, initial_state, feed_previous, \
         loop=False):
         self.lstm.h = initial_state[0]
@@ -130,6 +138,8 @@ class lstm_decoder_embedding(chainer.Chain):
         outputs = []
         prev = None
         for i, inp in enumerate(decoder_inputs):
+            if loop:
+                inp = self.loop_function(prev, initial_state[0], loop)
             ys = self.lstm(inp)
             state = (self.lstm.h, self.lstm.c)
             output = F.vstack(ys)
@@ -147,7 +157,7 @@ class lstm_decoder_embedding(chainer.Chain):
             x_emb = self.embed(features)
             x_emb = normalizing(x_emb, 1)
             y_input.append(F.concat([x_emb, H0], 1))
-        out_proj = False
+        out_proj = True if feed_previous else False
         outputs, state = self.rnn_decoder_truncated(y_input, H1, feed_previous, \
             out_proj)
         # logits
