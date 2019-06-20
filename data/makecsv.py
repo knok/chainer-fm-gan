@@ -2,7 +2,8 @@ import tarfile
 import csv
 import re
 
-target_genre = ["it-life-hack", "kaden-channel"]
+target_genre = ["it-life-hack", "kaden-channel", "dokujo-tsushin", "topic-news", \
+    "livedoor-homme", "movie-enter", "peachy" "smax", "sports-watch"]
 
 zero_fnames = []
 one_fnames = []
@@ -31,11 +32,10 @@ with tarfile.open(tgz_fname) as tf:
         # ライセンスファイルはスキップ
         if "LICENSE.txt" in ti.name:
             continue
-        if target_genre[0] in ti.name and ti.name.endswith(".txt"):
-            zero_fnames.append(ti.name)
-            continue
-        if target_genre[1] in ti.name and ti.name.endswith(".txt"):
-            one_fnames.append(ti.name)
+        for i in range(len(target_genre)):
+            if target_genre[i] in ti.name and ti.name.endswith(".txt"):
+                zero_fnames.append(ti.name)
+                break
     with open(tsv_fname, "w") as wf:
         writer = csv.writer(wf, delimiter='\t')
         # ラベル 0
