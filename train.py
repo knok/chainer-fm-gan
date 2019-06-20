@@ -77,7 +77,7 @@ def get_args():
     p.add_argument('--log-interval', type=int, default=100)
     p.add_argument('--valid-interval', type=int, default=200)
     p.add_argument('--resume', '-r', default=None)
-    p.add_argument('--snap-interval', type=int, default=5000,
+    p.add_argument('--snap-interval', type=int, default=1000,
                         help='number of iteration to take snapshot')
     args = p.parse_args()
     return args
