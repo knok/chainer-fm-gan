@@ -171,3 +171,41 @@ class lstm_decoder_embedding(chainer.Chain):
         loss = F.sum(F.softmax_cross_entropy(seq_logits, concat_ys_out, reduce='no')) \
             / bsize
         return loss, syn_sents, logits
+
+class auto_encoder(chainer.Chain):
+    def __init__(self, n_words, maxlen=51, embed_size=300, n_gan=128, ac_func=F.tanh, stride=2, ef_dim=128, n_hid=100,
+            trainable=True, relu=False):
+        super().__init__()
+        self.ef_dim = ef_dim
+        with self.init_scope():
+            self.embedding = embedding(n_words, embed_size, trainable, relu)
+            self.conv_encoder = conv_encoder(n_gan, ac_func, stride, maxlen=maxlen)
+            self.vae_classifier = vae_classifier_2layer(ef_dim)
+            self.lstm_decoder = lstm_decoder_embedding(self.embedding, n_hid, n_words, embed_size)
+
+    def forward(self, x, x_org, feed_previous=False):
+        bsize = len(x)
+        x_emb, _ = self.embedding(x)
+        x_emb = F.expand_dims(x_emb, 1)
+        x_emb = normalizing(x_emb, 1)
+        H = self.conv_encoder(x_emb)
+        H_mean, H_log_sigma_sq = self.vae_classifier(H)
+        mu = self.xp.zeros((bsize, self.ef_dim), np.float32)
+        ln_sigma = self.xp.ones((bsize, self.ef_dim), np.float32)
+        eps = F.gaussian(mu, ln_sigma) # N(0, 1)
+        H_dec = H_mean + eps * F.sqrt(F.exp(H_log_sigma_sq))
+        H_dec2 = F.identity(H_dec)
+        # moddel: cnn_rnn
+        loss, rec_sent_1, _ = self.lstm_decoder(H_dec2, x_org, feed_previous=feed_previous)
+        _, rec_sent_2, _ = self.lstm_decoder(H_dec2, x_org, feed_previous=True)
+        # KL loss
+        kl_loss = F.mean(-0.5 * F.mean(1 + H_log_sigma_sq \
+                                    - F.square(H_mean) \
+                                    - F.exp(H_log_sigma_sq), axis=1))
+        loss += kl_loss
+        chainer.report({'loss': loss.data, 'kl_loss': kl_loss.data}, self)
+        return loss, rec_sent_1, rec_sent_2
+
+    def __call__(self, x, x_org):
+        loss, _, _ = self.forward(x, x_org)
+        return loss
