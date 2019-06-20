@@ -138,7 +138,7 @@ class lstm_decoder_embedding(chainer.Chain):
         outputs = []
         prev = None
         for i, inp in enumerate(decoder_inputs):
-            if loop:
+            if loop and prev is not None:
                 inp = self.loop_function(prev, initial_state[0], loop)
             ys = self.lstm(inp)
             state = (self.lstm.h, self.lstm.c)
@@ -185,9 +185,9 @@ class auto_encoder(chainer.Chain):
 
     def forward(self, x, x_org, feed_previous=False):
         bsize = len(x)
-        x_emb, _ = self.embedding(x)
-        x_emb = F.expand_dims(x_emb, 1)
+        x_emb = self.embedding(x)
         x_emb = normalizing(x_emb, 1)
+        x_emb = F.expand_dims(x_emb, 1)
         H = self.conv_encoder(x_emb)
         H_mean, H_log_sigma_sq = self.vae_classifier(H)
         mu = self.xp.zeros((bsize, self.ef_dim), np.float32)
@@ -209,3 +209,4 @@ class auto_encoder(chainer.Chain):
     def __call__(self, x, x_org):
         loss, _, _ = self.forward(x, x_org)
         return loss
+
