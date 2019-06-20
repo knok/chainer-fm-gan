@@ -49,7 +49,7 @@ class embedding(chainer.Chain):
         with self.init_scope():
             self.embed = L.EmbedID(n_words, embed_size, initialW=emb_init)
         if not trainable:
-            embed.disable_update()
+            self.embed.disable_update()
     
     def __call__(self, features):
         W = self.embed(features)
