@@ -168,8 +168,6 @@ class lstm_decoder_embedding(chainer.Chain):
         # loss
         seq_logits = F.concat(F.stack(logits[:-1], 1), 0)
         concat_ys_out = F.concat(F.stack(y[1:], 1), 0)
-        if feed_previous is not None:
-            loss = F.sum(F.softmax_cross_entropy(seq_logits, concat_ys_out, reduce='no')) / bsize
-        else:
-            loss = None
+        loss = F.sum(F.softmax_cross_entropy(seq_logits, concat_ys_out, reduce='no')) \
+            / bsize
         return loss, syn_sents, logits
