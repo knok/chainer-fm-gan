@@ -210,3 +210,19 @@ class auto_encoder(chainer.Chain):
         loss, _, _ = self.forward(x, x_org)
         return loss
 
+def main():
+    import utils
+    maxlen = 51
+    filter_shape = 5
+    sent_len = maxlen + 2*(filter_shape-1)
+    n_words = 5728
+    m = auto_encoder(n_words, maxlen=maxlen)
+    # m = textGan(n_words, maxlen=maxlen)
+    data = np.arange(20*2, dtype=np.int32).reshape(2, 20)
+    x = utils.prepare_data_for_cnn(data, maxlen, filter_shape)
+    x_orig = utils.prepare_data_for_rnn(data, maxlen, sent_len, n_words)
+    #import pdb; pdb.set_trace()
+    m(x, x_orig)
+
+if __name__== '__main__':
+    main()
