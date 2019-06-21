@@ -73,7 +73,7 @@ def get_args():
     p.add_argument('--gpu', '-g', type=int, default=-1)
     p.add_argument('--batchsize', '-b', type=int, default=64)
     p.add_argument('--epoch', '-e', type=int, default=100)
-    p.add_argument('--out', '-o', default='result')
+    p.add_argument('--out', '-o', default='result-gan')
     p.add_argument('--log-interval', type=int, default=100)
     p.add_argument('--valid-interval', type=int, default=200)
     p.add_argument('--resume', '-r', default=None)
