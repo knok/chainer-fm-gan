@@ -79,6 +79,7 @@ def get_args():
     p.add_argument('--resume', '-r', default=None)
     p.add_argument('--snap-interval', type=int, default=1000,
                         help='number of iteration to take snapshot')
+    p.add_argument('--generator-pretrain', '-p', default="result/finalmodel.npz")
     args = p.parse_args()
     return args
 
