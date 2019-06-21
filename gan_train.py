@@ -109,3 +109,79 @@ def train(args):
         "device": args.gpu,
         "opt": opt
     }
+
+    generator = model.textGan_generator(opt.n_words, maxlen=opt.maxlen)
+    discriminator = model.textGan_discriminator( \
+        generator.embedding, opt.n_words)
+    models = [generator, discriminator]
+    updater_args["models"] = models
+
+    if args.gpu >= 0:
+        chainer.backends.cuda.get_device(args.gpu).use()
+        for mdl in models:
+            mdl.to_gpu(args.gpu)
+    
+    opts["opt_gen"] = chainer.optimizers.Adam()
+    opts["opt_gen"].setup(generator)
+    opts["opt_gen"].add_hook(chainer.optimizer.GradientClipping(5.0))
+    opts["opt_dis"] = chainer.optimizers.Adam()
+    opts["opt_dis"].setup(discriminator)
+    opts["opt_dis"].add_hook(chainer.optimizer.GradientClipping(5.0))
+    updater_args["optimizer"] = opts
+
+    updater = my_updater.FmGanUpdater(**updater_args)
+    trainer = training.Trainer(updater, (args.epoch, 'epoch'), out=args.out)
+
+    for m in models:
+        trainer.extend(extensions.snapshot_object(
+            m, m.__class__.__name__ + '_{.updater.iteration}.npz'), trigger=(args.snap_interval, 'iteration'))
+    trainer.extend(extensions.LogReport( \
+        report_keys), trigger=(args.log_interval, 'iteration'))
+    trainer.extend(extensions.PrintReport( \
+        report_keys), trigger=(args.log_interval, 'iteration'))
+    trainer.extend(extensions.snapshot(), 
+        trigger=(args.snap_interval, 'iteration'))
+    # validation/evaluation
+    @chainer.training.make_extension()
+    def translate(trainer):
+        vaild_index = np.random.choice(len(test_data), args.batchsize)
+        val_sents = [test[t] for t in vaild_index]
+        val_sents_permutated = denoise.add_noise(val_sents, opt)
+        x_val_batch = utils.prepare_data_for_cnn(val_sents_permutated, opt.maxlen, opt.filter_shape)
+        x_val_batch_org = utils.prepare_data_for_rnn(val_sents, opt.maxlen, opt.sent_len, opt.n_words, is_add_GO=True)
+        mdl = generator
+        xp = mdl.xp
+        x_val_batch = xp.array(x_val_batch)
+        x_val_batch_org = xp.array(x_val_batch_org)
+        syn_sents, logits = mdl(x_val_batch, x_val_batch_org)
+        prob = [F.softmax(l * opt.L) for l in logits]
+        prob = F.stack(prob, 1)
+        source_sentence = ' '.join([source_words[int(i)] for i in x_val_batch_org[0] if i != PAD])
+        result_sentence = ' '.join([source_words.get(int(i), '*NOKEY') for i in syn_sents.data[0] if i != PAD])
+        prob_sentence = ' '.join([source_words[xp.argmax(p)] for p in prob.data[:, 0]])
+        print('# source : ' + source_sentence)
+        print('# sent2  : ' + result_sentence)
+        print('# prob   : ' + prob_sentence)
+    trainer.extend(
+        translate, trigger=(args.valid_interval, 'iteration'))
+
+    #
+    print('load pretraining')
+    chainer.serializers.load_npz(args.generator_pretrain, generator)
+
+    print('start training')
+
+    if args.resume:
+        chainer.serializers.load_npz(args.resume, trainer)
+    
+    trainer.run()
+
+    chainer.serializers.save_npz(args.out + '/final-gen.npz', generator)
+    chainer.serializers.save_npz(args.out + '/final-dis.npz', discriminator)
+
+def main():
+    args = get_args()
+    train(args)
+
+if __name__ == '__main__':
+    main()
