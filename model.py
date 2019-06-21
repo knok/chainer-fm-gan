@@ -133,6 +133,7 @@ class lstm_decoder_embedding(chainer.Chain):
 
     def rnn_decoder_truncated(self, decoder_inputs, initial_state, feed_previous, \
         loop=False):
+        self.lstm.reset_state()
         self.lstm.h = initial_state[0]
         self.lstm.c = initial_state[1]
         outputs = []
