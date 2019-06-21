@@ -271,6 +271,7 @@ class discriminator(chainer.Chain):
         else:
             x_emb, _ = self.embedding(x)
         x_emb = F.expand_dims(x_emb, 1)
+        x_emb = normalizing(x_emb, 1)
         H = self.encoder(x_emb)
         logits = self.disc(H)
         return logits, H
