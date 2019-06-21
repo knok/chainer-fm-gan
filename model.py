@@ -211,19 +211,99 @@ class auto_encoder(chainer.Chain):
         loss, _, _ = self.forward(x, x_org)
         return loss
 
+class textGan_generator(chainer.Chain):
+    def __init__(self, n_words, maxlen=51, embed_size=300, n_gan=128, ac_func=F.tanh, stride=2, \
+            ef_dim=128, n_hid=100, trainable=True, relu=False, fsize=300, filter_shape=5):
+        super().__init__()
+        self.L = n_hid
+        self.ef_dim = n_gan
+        with self.init_scope():
+            self.embedding = embedding(n_words, embed_size, trainable, relu)
+            self.lstm_decoder = lstm_decoder_embedding(self.embedding, n_hid, n_words, embed_size)
+
+    def make_hidden(self, bsize):
+        mu = self.xp.zeros((bsize, self.ef_dim), np.float32)
+        ln_sigma = self.xp.ones((bsize, self.ef_dim), np.float32)
+        z = F.gaussian(mu, ln_sigma)
+        return z
+
+    def __call__(self, x, x_org):
+        bsize = len(x)
+        z = self.make_hidden(bsize)
+        # lstm
+        x_emb, _ = self.embedding(x)
+        x_emb = F.expand_dims(x_emb, 1)
+        x_emb = normalizing(x_emb, 1)
+        _, syn_sents, logits = self.lstm_decoder(z, x_org, feed_previous=True)
+        prob = [F.softmax(l * self.L) for l in logits]
+        prob = F.stack(prob, 1)
+
+        return syn_sents, prob
+
+class discriminator_2layer(chainer.Chain):
+    def __init__(self):
+        super().__init__()
+        opt_H_dis = 300
+        biasInit = chainer.initializers.Constant(0.001, dtype=np.float32)
+        # opt.tanh = None, opt.batch_nrom = False
+        with self.init_scope():
+            self.fc1 = L.Linear(None, opt_H_dis, initial_bias=biasInit)
+            self.fc2 = L.Linear(None, 2, initial_bias=biasInit)
+    def __call__(self, H):
+        H = F.squeeze(H)
+        # regularization - dropout only
+        H_reg = F.dropout(H)
+        H_dis = F.relu(self.fc1(H_reg))
+        H_dis = F.dropout(H_dis)
+        logits = self.fc2(H_dis)
+        return logits
+
+class discriminator(chainer.Chain):
+    def __init__(self, embedding, n_gan, ac_func, stride, maxlen, fsize, filter_shape, embed_size):
+        super().__init__()
+        with self.init_scope():
+            self.embedding = embedding
+            self.encoder = conv_encoder(n_gan, ac_func, stride, maxlen=maxlen)
+            self.disc = discriminator_2layer()
+    def __call__(self, x, is_prob=False):
+        if is_prob:
+            x_emb = F.tensordot(x, self.embedding.embed.W, [[2],[0]])
+        else:
+            x_emb, _ = self.embedding(x)
+        x_emb = F.expand_dims(x_emb, 1)
+        H = self.encoder(x_emb)
+        logits = self.disc(H)
+        return logits, H
+
+class textGan_discriminator(chainer.Chain):
+    def __init__(self, embedding, n_words, maxlen=51, embed_size=300, n_gan=128, \
+            ac_func=F.tanh, stride=2, ef_dim=128, n_hid=100, \
+            trainable=True, relu=False, fsize=300, filter_shape=5):
+        super().__init__()
+        with self.init_scope():
+                self.embedding = embedding
+                self.disc = discriminator(self.embedding, n_gan, ac_func, stride, maxlen, fsize, filter_shape, embed_size)
+
+    def __call__(self, inp, is_prob=False):
+        logits, H = self.disc(inp, is_prob=is_prob)
+        return logits, H
+
 def main():
     import utils
     maxlen = 51
     filter_shape = 5
     sent_len = maxlen + 2*(filter_shape-1)
     n_words = 5728
-    m = auto_encoder(n_words, maxlen=maxlen)
+    #m = auto_encoder(n_words, maxlen=maxlen)
+    m = textGan_generator(n_words, maxlen)
+    d = textGan_discriminator(m.embedding, n_words, maxlen=maxlen)
     # m = textGan(n_words, maxlen=maxlen)
     data = np.arange(20*2, dtype=np.int32).reshape(2, 20)
     x = utils.prepare_data_for_cnn(data, maxlen, filter_shape)
     x_orig = utils.prepare_data_for_rnn(data, maxlen, sent_len, n_words)
-    #import pdb; pdb.set_trace()
-    m(x, x_orig)
+    syn_sents, prob = m(x, x_orig)
+    # l, h = d(x)
+    # l, h = d(prob, is_prob=True)
 
 if __name__== '__main__':
     main()
