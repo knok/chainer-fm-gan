@@ -29,6 +29,7 @@ class MapDict:
 opt = MapDict()
 opt.permutation = 0
 opt.substitution = 's'  # Deletion(d), Insertion(a), Substitution(s) and Permutation(p)
+opt.L = 100
 
 def convert(batch, device):
     if device < 0:
