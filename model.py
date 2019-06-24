@@ -269,7 +269,7 @@ class discriminator(chainer.Chain):
         if is_prob:
             x_emb = F.tensordot(x, self.embedding.embed.W, [[2],[0]])
         else:
-            x_emb, _ = self.embedding(x)
+            x_emb = self.embedding(x)
         x_emb = F.expand_dims(x_emb, 1)
         x_emb = normalizing(x_emb, 1)
         H = self.encoder(x_emb)
