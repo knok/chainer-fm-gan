@@ -231,7 +231,7 @@ class textGan_generator(chainer.Chain):
         bsize = len(x)
         z = self.make_hidden(bsize)
         # lstm
-        x_emb, _ = self.embedding(x)
+        x_emb = self.embedding(x)
         x_emb = F.expand_dims(x_emb, 1)
         x_emb = normalizing(x_emb, 1)
         _, syn_sents, logits = self.lstm_decoder(z, x_org, feed_previous=True)
