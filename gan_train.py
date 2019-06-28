@@ -123,10 +123,10 @@ def train(args):
         for mdl in models:
             mdl.to_gpu(args.gpu)
     
-    opts["opt_gen"] = chainer.optimizers.Adam()
+    opts["opt_gen"] = chainer.optimizers.Adam(alpha=1e-5)
     opts["opt_gen"].setup(generator)
     opts["opt_gen"].add_hook(chainer.optimizer.GradientClipping(5.0))
-    opts["opt_dis"] = chainer.optimizers.Adam()
+    opts["opt_dis"] = chainer.optimizers.Adam(alpha=1e-5)
     opts["opt_dis"].setup(discriminator)
     opts["opt_dis"].add_hook(chainer.optimizer.GradientClipping(5.0))
     updater_args["optimizer"] = opts
