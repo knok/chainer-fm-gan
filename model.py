@@ -108,7 +108,7 @@ class vae_classifier_2layer(chainer.Chain):
         return mean, log_sigma_sq
 
 class lstm_decoder(chainer.Chain):
-    def init(self, shared_emb, n_hid, n_words, embed_size=300):
+    def __init__(self, shared_emb, n_hid, n_words, embed_size=300):
         super.__init__()
         self.dropout_ratio = 0
         self.n_words = n_words
@@ -234,7 +234,7 @@ class auto_encoder(chainer.Chain):
             self.embedding = embedding(n_words, embed_size, trainable, relu)
             self.conv_encoder = conv_encoder(n_gan, ac_func, stride, maxlen=maxlen)
             self.vae_classifier = vae_classifier_2layer(ef_dim)
-            self.lstm_decoder = lstm_decoder_embedding(self.embedding, n_hid, n_words, embed_size)
+            self.lstm_decoder = lstm_decoder(self.embedding, n_hid, n_words, embed_size)
 
     def forward(self, x, x_org, feed_previous=False):
         bsize = len(x)
@@ -271,7 +271,7 @@ class textGan_generator(chainer.Chain):
         self.ef_dim = n_gan
         with self.init_scope():
             self.embedding = embedding(n_words, embed_size, trainable, relu)
-            self.lstm_decoder = lstm_decoder_embedding(self.embedding, n_hid, n_words, embed_size)
+            self.lstm_decoder = (self.embedding, n_hid, n_words, embed_size)
 
     def make_hidden(self, bsize):
         mu = self.xp.zeros((bsize, self.ef_dim), np.float32)
