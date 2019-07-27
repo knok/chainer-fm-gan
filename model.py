@@ -107,6 +107,58 @@ class vae_classifier_2layer(chainer.Chain):
         log_sigma_sq = self.fc3(F.dropout(H_dis, self.dropout_ratio))
         return mean, log_sigma_sq
 
+class lstm_decoder(chainer.Chain):
+    def init(self, shared_emb, n_hid, n_words, embed_size=300):
+        super.__init__()
+        self.dropout_ratio = 0
+        self.n_words = n_words
+        initbias = chainer.initializers.Constant(0.001, dtype=np.float32)
+        initw = chainer.initializers.Uniform(scale=0.001, dtype=np.float32)
+        with self.init_scope():
+            self.embed = shared_emb
+            self.fc1 = L.Linear(None, n_hid, initial_bias = initbias)
+            self.fc11 = L.Linear(None, embed_size, initial_bias = initw, initialW=initw)
+            self.lstm = L.NStepLSTM(2, embed_size + n_hid, n_hid)
+            self.W = chainer.Parameter(initializer=initw, shape=[n_hid, embed_size])
+            self.b = chainer.Parameter(initializer=initw, shape=[n_words])
+            self.fc3 = L.Linear(n_hid, n_words, initialW=initw)
+
+    def __call__(self, H, y, feed_previous=False):
+        bsize = H.shape[0]
+        y = F.stack(y, axis=1)
+        H0 = self.fc1(H)
+        c = self.xp.zeros_like(H0, dtype=np.float32)
+        exs = self.embed(y)
+        _x_shape = exs.shape
+        H_ext = F.broadcast_to(H0, _x_shape)
+        x_emb = F.concat([exs, H_ext], axis=2)
+        if not feed_previous:
+            _, _,  ys = self.lstm(H0, c, x_emb)
+        else:
+            prev = None
+            h = H0
+            outputs = []
+            for inp in x_emb:
+                if prev is not None:
+                    _inp = inp * self.W + self.b
+                    prev_symbol = F.argmax(_inp)
+                    emb_prev = F.embed_id(prev_symbol, normalizing(self.embed.W, 1))
+                    inp = F.concat([emb_prev, H0])
+                h, c, ys = self.lstm(h, c, inp)
+                output = F.vstack(ys)
+                outputs.append(output)
+            ys = outputs
+
+        logits = [self.fc3(out) for out in ys]
+        syn_sents = [F.argmax(l, 1) for l in logits]
+        syn_sents = F.stack(syn_sents, 1)
+
+        seq_logits = F.concat(F.stack(logits[:-1], 1), 0)
+        concat_ys_out = F.concat(F.stack(y[1:], 1), 0)
+        loss = F.sum(F.softmax_cross_entropy(seq_logits, concat_ys_out, reduce='no')) \
+            / bsize
+        return loss, syn_sents, logits
+
 class lstm_decoder_embedding(chainer.Chain):
     def __init__(self, shared_emb, n_hid, n_words, embed_size=300):
         super().__init__()
