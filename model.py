@@ -118,7 +118,7 @@ class lstm_decoder(chainer.Chain):
             self.embed = shared_emb
             self.fc1 = L.Linear(None, n_hid, initial_bias = initbias)
             self.fc11 = L.Linear(None, embed_size, initial_bias = initw, initialW=initw)
-            self.lstm = L.NStepLSTM(2, embed_size + n_hid, n_hid)
+            self.lstm = L.NStepLSTM(2, embed_size + n_hid, n_hid, self.dropout_ratio)
             self.W = chainer.Parameter(initializer=initw, shape=[n_hid, embed_size])
             self.b = chainer.Parameter(initializer=initw, shape=[n_words])
             self.fc3 = L.Linear(n_hid, n_words, initialW=initw)
@@ -127,11 +127,17 @@ class lstm_decoder(chainer.Chain):
         bsize = H.shape[0]
         y = F.stack(y, axis=1)
         H0 = self.fc1(H)
+        hsize = H0.shape[1]
         c = self.xp.zeros_like(H0, dtype=np.float32)
         exs = self.embed(y)
-        _x_shape = exs.shape
-        H_ext = F.broadcast_to(H0, _x_shape)
+        l, b, _ = exs.shape
+        ext_shape = l, b, hsize
+        H_ext = F.broadcast_to(H0, ext_shape)
         x_emb = F.concat([exs, H_ext], axis=2)
+        y_input = []
+        for inp in x_emb:
+            y_input.append(inp)
+        x_emb = y_input
         if not feed_previous:
             _, _,  ys = self.lstm(H0, c, x_emb)
         else:
