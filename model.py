@@ -109,7 +109,7 @@ class vae_classifier_2layer(chainer.Chain):
 
 class lstm_decoder(chainer.Chain):
     def __init__(self, shared_emb, n_hid, n_words, embed_size=300):
-        super.__init__()
+        super().__init__()
         self.dropout_ratio = 0
         self.n_words = n_words
         initbias = chainer.initializers.Constant(0.001, dtype=np.float32)
