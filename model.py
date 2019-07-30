@@ -138,6 +138,8 @@ class lstm_decoder(chainer.Chain):
         for inp in x_emb:
             y_input.append(inp)
         x_emb = y_input
+        H0 = F.stack([H0, H0])
+        c = F.stack([c, c])
         if not feed_previous:
             _, _,  ys = self.lstm(H0, c, x_emb)
         else:
