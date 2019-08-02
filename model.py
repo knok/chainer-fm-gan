@@ -211,7 +211,7 @@ class lstm_decoder_embedding(chainer.Chain):
         bsize = H.shape[0]
         y = F.stack(y, axis=1)
         H0 = self.fc1(H)
-        c = self.xp.zeros_like(H0, dtype=np.float32)
+        c = self.xp.zeros(H0.shape, dtype=self.xp.float32)
         H1 = (H0, c)
         y_input = []
         for features in y:
