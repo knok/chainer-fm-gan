@@ -279,7 +279,7 @@ class textGan_generator(chainer.Chain):
         self.ef_dim = n_gan
         with self.init_scope():
             self.embedding = embedding(n_words, embed_size, trainable, relu)
-            self.lstm_decoder = (self.embedding, n_hid, n_words, embed_size)
+            self.lstm_decoder = lstm_decoder(self.embedding, n_hid, n_words, embed_size)
 
     def make_hidden(self, bsize):
         mu = self.xp.zeros((bsize, self.ef_dim), np.float32)
