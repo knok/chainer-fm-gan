@@ -128,7 +128,7 @@ class lstm_decoder(chainer.Chain):
         y = F.stack(y, axis=1)
         H0 = self.fc1(H)
         hsize = H0.shape[1]
-        c = self.xp.zeros_like(H0, dtype=np.float32)
+        c = self.xp.zeros(H0.shape, dtype=np.float32)
         exs = self.embed(y)
         l, b, _ = exs.shape
         ext_shape = l, b, hsize
