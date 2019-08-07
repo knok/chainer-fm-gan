@@ -138,6 +138,7 @@ class lstm_decoder(chainer.Chain):
         for inp in x_emb:
             y_input.append(inp)
         x_emb = y_input
+        _H0 = H0
         H0 = F.stack([H0, H0])
         c = F.stack([c, c])
         if not feed_previous:
@@ -148,13 +149,14 @@ class lstm_decoder(chainer.Chain):
             outputs = []
             for inp in x_emb:
                 if prev is not None:
-                    _inp = inp * self.W + self.b
-                    prev_symbol = F.argmax(_inp)
-                    emb_prev = F.embed_id(prev_symbol, normalizing(self.embed.W, 1))
-                    inp = F.concat([emb_prev, H0])
-                h, c, ys = self.lstm(h, c, inp)
+                    _inp = self.fc11(inp)
+                    prev_symbol = F.argmax(_inp, axis=1)
+                    emb_prev = F.embed_id(prev_symbol, normalizing(self.embed.embed.W, 1))
+                    inp = F.concat([emb_prev, _H0])
+                h, c, ys = self.lstm(h, c, [inp])
                 output = F.vstack(ys)
                 outputs.append(output)
+                prev = output
             ys = outputs
 
         logits = [self.fc3(out) for out in ys]
